@@ -1,0 +1,19 @@
+[Unit]
+Description=Solana Validator
+After=network.target
+Wants=solana-sys-tuner.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=USER
+Group=GROUP
+LimitNOFILE=1024000
+LogRateLimitIntervalSec=0
+Environment="PATH=/bin:/usr/bin:HOME/.local/share/solana/install/active_release/bin"
+ExecStart=HOME/validator.sh
+
+[Install]
+WantedBy=multi-user.target

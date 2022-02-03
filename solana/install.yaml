@@ -1,0 +1,329 @@
+---
+- name: Solana Installer
+  hosts: all
+  vars:
+    testnet_version: 1.8.11
+    testnet_api: https://api.testnet.solana.com
+    mainnet_version: 1.8.10
+    mainnet_api: https://api.mainnet-beta.solana.com
+
+  tasks:
+    - name: Check swapfile exists
+      tags:
+        - ramdisk
+      stat:
+        path: "/swapfile"
+      register: swapfile_exists
+
+    - name: Create swapfile
+      tags:
+        - ramdisk
+      become: yes
+      shell: "dd if=/dev/zero of=/swapfile bs=1MiB count=250KiB"
+      when: not swapfile_exists.stat.exists
+
+    - name: Chmod swapfile
+      tags:
+        - ramdisk
+      become: yes
+      file:
+        path: "/swapfile"
+        mode: '0600'
+      when: not swapfile_exists.stat.exists
+
+    - name: Format swap
+      tags:
+        - ramdisk
+      become: yes
+      shell: "mkswap /swapfile"
+      when: not swapfile_exists.stat.exists
+
+    - name: Add swap to /etc/fstab
+      tags:
+        - ramdisk
+      become: yes
+      lineinfile:
+        path: /etc/fstab
+        regexp: '^/swapfile'
+        line: "/swapfile swap swap defaults 0 0"
+
+    - name: Enable swap
+      tags:
+        - ramdisk
+      become: yes
+      shell: "swapon -a"
+
+    - name: Mount Point for ramdisk
+      tags:
+        - ramdisk
+      become: yes
+      file:
+        path: '/mnt/solana-accounts'
+        state: directory
+        mode: '0755'
+  
+    - name: Add tmpdisk to /etc/fstab
+      tags:
+        - ramdisk
+      become: yes
+      lineinfile:
+        path: /etc/fstab
+        regexp: '/mnt/solana-accounts'
+        line: "tmpfs /mnt/solana-accounts tmpfs rw,size=300G,user={{ ansible_facts['env']['USER'] }} 0 0"
+
+    - name: Enable tmpfs
+      tags:
+        - ramdisk
+      become: yes
+      shell: "mount /mnt/solana-accounts/"
+
+    - name: Copy keys
+      copy:
+        src: "keys/{{ keydir }}/{{ flavour }}/{{ item }}"
+        dest: "~"
+      loop:
+        - validator-keypair.json
+        - validator-stake-keypair.json
+        - vote-account-keypair.json
+
+    - name: Remove old installer
+      ansible.builtin.file:
+        path: "~/install"
+        state: absent
+
+    - name: Download solana installer
+      get_url:
+        url: "https://release.solana.com/v{{ vars[flavour + '_version'] }}/install"
+        dest: "~/install"
+
+    - name: Chmod for the installer
+      file:
+        path: "~/install"
+        mode: '0755'
+
+    - name: Run installer
+      shell: "~/install"
+
+    - name: Change timezone
+      become: true
+      file:
+        src: /usr/share/zoneinfo/America/Los_Angeles
+        dest: /etc/localtime
+        state: link
+
+    - name: Set Solana Config URL
+      shell: "~/.local/share/solana/install/active_release/bin/solana config set --url {{ vars[flavour + '_api'] }}"
+
+    - name: Copy ID key
+      tags:
+        - accounting
+      copy:
+        src: ~/validator-keypair.json
+        dest: ~/.config/solana/id.json
+        remote_src: yes
+      
+    - name: Ensure voting account exists
+      tags:
+        - accounting
+      shell: "~/.local/share/solana/install/active_release/bin/solana create-vote-account ~/vote-account-keypair.json ~/validator-keypair.json ~/withdrawer.json --commission 10 || true"
+
+    - name: Ensure initial stake exists
+      tags:
+        - accounting
+      shell: "~/.local/share/solana/install/active_release/bin/solana create-stake-account ~/validator-stake-keypair.json 1 || true"
+
+    - name: Ensure stake staked
+      tags:
+        - accounting
+      shell: "~/.local/share/solana/install/active_release/bin/solana delegate-stake ~/validator-stake-keypair.json ~/vote-account-keypair.json || true"
+
+    - name: Copy validator.sh file
+      tags:
+        - service_file
+      copy:
+        src: "validator_{{ flavour }}.sh"
+        dest: ~/validator.sh
+
+    - name: Patch validator.sh file HOME
+      tags:
+        - service_file
+      replace:
+        path: ~/validator.sh
+        regexp: HOME
+        replace: "{{ ansible_facts['env']['HOME'] }}"
+
+    - name: Chmod validator.sh file
+      tags:
+        - service_file
+      file:
+        mode: '0755'
+        path: ~/validator.sh
+
+    - name: Copy service file
+      tags:
+        - service_file
+      copy:
+        src: "solana.service"
+        dest: ~/solana.service
+
+    - name: Patch service file USER
+      tags:
+        - service_file
+      replace:
+        path: ~/solana.service
+        regexp: USER
+        replace: "{{ ansible_facts['env']['USER'] }}"
+
+    - name: Patch service file GROUP
+      tags:
+        - service_file
+      replace:
+        path: ~/solana.service
+        regexp: GROUP
+        replace: "{{ ansible_facts['env']['USER'] }}"
+
+    - name: Patch service file HOME
+      tags:
+        - service_file
+      replace:
+        path: ~/solana.service
+        regexp: HOME
+        replace: "{{ ansible_facts['env']['HOME'] }}"
+
+    - name: Install service file
+      become: yes
+      tags:
+        - service_file
+      copy:
+        remote_src: yes
+        src: "{{ ansible_facts['env']['HOME'] }}/solana.service"
+        dest: /etc/systemd/system/solana.service
+
+    - name: Copy tuner service file
+      tags:
+        - service_file
+        - sys_tuner_service_file
+      copy:
+        src: "solana-sys-tuner.service"
+        dest: ~/solana-sys-tuner.service
+
+    - name: Patch tuner service file USER
+      tags:
+        - service_file
+        - sys_tuner_service_file
+      replace:
+        path: ~/solana-sys-tuner.service
+        regexp: USER
+        replace: "{{ ansible_facts['env']['USER'] }}"
+
+    - name: Patch service file GROUP
+      tags:
+        - service_file
+        - sys_tuner_service_file
+      replace:
+        path: ~/solana-sys-tuner.service
+        regexp: GROUP
+        replace: "{{ ansible_facts['env']['USER'] }}"
+
+    - name: Patch service file HOME
+      tags:
+        - service_file
+        - sys_tuner_service_file
+      replace:
+        path: ~/solana-sys-tuner.service
+        regexp: HOME
+        replace: "{{ ansible_facts['env']['HOME'] }}"
+
+    - name: Install tuner service file
+      become: yes
+      tags:
+        - service_file
+        - sys_tuner_service_file
+      copy:
+        remote_src: yes
+        src: "{{ ansible_facts['env']['HOME'] }}/solana-sys-tuner.service"
+        dest: /etc/systemd/system/solana-sys-tuner.service
+
+    - name: Start solana-sys-tuner service
+      become: yes
+      tags:
+        - service_file
+        - sys_tuner_service_file
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: solana-sys-tuner
+
+    - name: Start solana service
+      become: yes
+      tags:
+        - service_file
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: solana
+
+    - name: Copy cleaner script
+      tags:
+        - cleaner
+      copy:
+        src: ./solana-cleaner.sh
+        dest: ~/solana-cleaner.sh
+
+    - name: Chmod cleaner script
+      tags:
+        - cleaner
+      file:
+        path: ~/solana-cleaner.sh
+        mode: "0755"
+
+    - name: Patch cleaner file HOME
+      tags:
+        - cleaner
+      replace:
+        path: ~/solana-cleaner.sh
+        regexp: HOME
+        replace: "{{ ansible_facts['env']['HOME'] }}"
+
+    - name: Install cleaner cron
+      tags:
+        - cleaner
+      cron:
+        name: "Solana ledger cleaner"
+        minute: "12"
+        hour: "*"
+        job: "{{ ansible_facts['env']['HOME'] }}/solana-cleaner.sh > /tmp/solana-cleaner.latest"
+
+    - name: Copy withdrawer script
+      tags:
+        - withdrawer
+      copy:
+        src: ./solana-withdrawer.sh
+        dest: ~/solana-withdrawer.sh
+
+    - name: Patch withdrawer script
+      tags:
+        - withdrawer
+      replace:
+        path: ./solana-withdrawer.sh
+        regexp: "--authorized-withdrawer \\$VALIDATOR_KEYPAIR"
+        replace: "--authorized-withdrawer {{ withdraw_authority }}"
+      when: withdraw_authority is defined
+
+    - name: Chmod withdrawer script
+      tags:
+        - withdrawer
+      file:
+        path: ~/solana-withdrawer.sh
+        mode: "0755"
+
+    - name: Install Withdrawer cron
+      tags:
+        - withdrawer
+      cron:
+        name: "Solana auto-withdraw"
+        minute: "17"
+        hour: "*"
+        job: "{{ ansible_facts['env']['HOME'] }}/solana-withdrawer.sh > /tmp/solana-withdrawer.latest"

@@ -1,0 +1,11 @@
+[Unit]
+Description=Solana System Tuner
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=HOME/.local/share/solana/install/active_release/bin/solana-sys-tuner --user USER
+
+[Install]
+WantedBy=multi-user.target
