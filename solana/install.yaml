@@ -331,9 +331,9 @@
     - name: Copy solana metrics agent
       tags:
         - metrics
-      file:
-        path: ~/solana-metrics.py
+      copy:
         src: ./solana-metrics.py
+        dest: ~/solana-metrics.py
 
     - name: Chmod solana metrics agent
       tags:
