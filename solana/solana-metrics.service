@@ -1,0 +1,11 @@
+[Unit]
+Description=Solana Metrics
+
+[Service]
+Type=simple
+User=USER
+Group=GROUP
+ExecStart=HOME/solana-metrics.py
+
+[Install]
+WantedBy=multi-user.target

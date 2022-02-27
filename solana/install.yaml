@@ -327,3 +327,75 @@
         minute: "17"
         hour: "*"
         job: "{{ ansible_facts['env']['HOME'] }}/solana-withdrawer.sh > /tmp/solana-withdrawer.latest"
+
+    - name: Copy solana metrics agent
+      tags:
+        - metrics
+      file:
+        path: ~/solana-metrics.py
+        src: ./solana-metrics.py
+
+    - name: Chmod solana metrics agent
+      tags:
+        - metrics
+      file:
+        path: ~/solana-metrics.py
+        mode: "0755"
+
+    - name: Patch solana metrics agent
+      tags:
+        - metrics
+      replace:
+        path: ~/solana-metrics.py
+        regexp: HOME
+        replace: "{{ ansible_facts['env']['HOME'] }}"
+
+    - name: Copy service file for solana-metrics
+      tags:
+        - metrics
+      copy:
+        src: "solana-metrics.service"
+        dest: ~/solana-metrics.service
+
+    - name: Patch metrics service file USER
+      tags:
+        - metrics
+      replace:
+        path: ~/solana-metrics.service
+        regexp: USER
+        replace: "{{ ansible_facts['env']['USER'] }}"
+
+    - name: Patch metrics service file GROUP
+      tags:
+        - metrics
+      replace:
+        path: ~/solana-metrics.service
+        regexp: GROUP
+        replace: "{{ ansible_facts['env']['USER'] }}"
+
+    - name: Patch metrics service file HOME
+      tags:
+        - metrics
+      replace:
+        path: ~/solana-metrics.service
+        regexp: HOME
+        replace: "{{ ansible_facts['env']['HOME'] }}"
+
+    - name: Install metrics service file
+      become: yes
+      tags:
+        - metrics
+      copy:
+        remote_src: yes
+        src: "{{ ansible_facts['env']['HOME'] }}/solana-metrics.service"
+        dest: /etc/systemd/system/solana-metrics.service
+
+    - name: Start solana-metrics service
+      become: yes
+      tags:
+        - metrics
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: solana-metrics
