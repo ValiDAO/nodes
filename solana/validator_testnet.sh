@@ -19,7 +19,7 @@ solana-validator                                                       \
   --entrypoint entrypoint3.testnet.solana.com:8001 \
   --expected-genesis-hash 4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY \
   --wal-recovery-mode skip_any_corrupted_record                        \
-  --dynamic-port-range 8000-8011                                       \
+  --dynamic-port-range 8000-8020                                       \
   --limit-ledger-size 50000000 \
   --snapshot-compression none                                          \
   --snapshot-interval-slots 500 \
