@@ -1,0 +1,13 @@
+[Unit]
+Description=Kusama
+After=network-online.target
+[Service]
+User={{ ansible_facts['env']['USER'] }}
+ExecStart={{ ansible_facts['env']['HOME'] }}/polkadot.bin --name "{{ moniker }}" --chain kusama
+Restart=always
+RestartSec=10
+LimitNOFILE=10000
+
+[Install]
+WantedBy=multi-user.target
+

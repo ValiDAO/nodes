@@ -1,0 +1,42 @@
+---
+- name: Kusama Installer
+  hosts: kusama
+  vars:
+    version: 0.9.17-rc4
+    checksum: 0e3c181b3ff04b4b7112c0c936274088ca7edf48a1b5b96c3c4b7940ab240383
+
+  tasks:
+    - name: Remove Existing Binary
+      file:
+        path: ~/polkadot.bin
+        state: 'absent'
+
+    - name: Download Binary
+      get_url:
+        url: "https://github.com/paritytech/polkadot/releases/download/v{{ version }}/polkadot"
+        dest: ~/polkadot.bin
+        checksum: "sha256:{{ checksum }}"
+
+    - name: Chmod
+      file:
+        path: ~/polkadot.bin
+        mode: "0755"
+
+    - name: Render service file
+      template:
+        src: kusama.service
+        dest: /etc/systemd/system/kusama.service
+      become: yes
+
+    - name: Copy get_session_keys
+      copy:
+        src: get_session_keys.sh
+        dest: ~/get_session_keys.sh
+
+    - name: Start kusama service
+      become: yes
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: kusama
