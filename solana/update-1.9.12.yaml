@@ -43,14 +43,9 @@
         daemon_reload: yes
         name: solana-sys-tuner
 
-    - name: Clean logs
+    - name: clean logs
       ansible.builtin.file:
         path: "~/solana.log"
-        state: absent
-
-    - name: Remove old valudator.sh
-      ansible.builtin.file:
-        path: "~/validator.sh"
         state: absent
 
     - name: Copy validator.sh file
@@ -58,6 +53,13 @@
       template:
         src: "validator_{{ flavour }}.sh.template"
         dest: "{{ ansible_facts['env']['HOME'] }}/validator.sh"
+        mode: '0755'
+        force: 'yes'
+
+    - name: Rm log
+      ansible.builtin.file:
+        path: "~/solana.log"
+        state: absent
 
     - name: Restart solana service
       become: yes

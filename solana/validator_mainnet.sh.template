@@ -8,7 +8,7 @@ nice -n -20 solana-validator \
   --vote-account {{ ansible_facts['env']['HOME'] }}/vote-account-keypair.json \
   --ledger {{ ansible_facts['env']['HOME'] }}/validator-ledger \
   --accounts /mnt/solana-accounts \
-  --full-rpc-api \
+  --full-rpc-api --rpc-port 8899 \
   --private-rpc \
   --incremental-snapshots \
   --snapshot-packager-niceness-adjustment 5 \
