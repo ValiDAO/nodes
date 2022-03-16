@@ -1,0 +1,70 @@
+---
+- name: Solana Updater
+  hosts: solana
+  serial: 1
+  order: shuffle
+  vars:
+    version: 1.9.12
+
+  tasks:
+    - name: Check version exists
+      stat:
+        path: "~/.local/share/solana/install/releases/{{ version }}"
+      register: version_exists
+
+    - name: Remove old installer
+      ansible.builtin.file:
+        path: "~/install"
+        state: absent
+
+    - name: Download solana installer
+      get_url:
+        url: "https://release.solana.com/v{{ version }}/install"
+        dest: "~/install"
+      when: not version_exists.stat.exists
+    - name: Chmod for the installer
+      file:
+        path: "~/install"
+        mode: '0755'
+      when: not version_exists.stat.exists
+
+    - name: Run installer
+      shell: "~/install"
+      when: not version_exists.stat.exists
+
+    - name: Wait for the window
+      shell: "~/.local/share/solana/install/active_release/bin/solana-validator --ledger {{ledger_dir}} wait-for-restart-window"
+
+    - name: Retart solana-sys-tuner service
+      become: yes
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: solana-sys-tuner
+
+    - name: clean logs
+      ansible.builtin.file:
+        path: "~/solana.log"
+        state: absent
+
+    - name: Copy validator.sh file
+      become: true
+      template:
+        src: "validator_{{ flavour }}.sh.template"
+        dest: "{{ ansible_facts['env']['HOME'] }}/validator.sh"
+        mode: '0755'
+        force: 'yes'
+
+    - name: Rm log
+      ansible.builtin.file:
+        path: "~/solana.log"
+        state: absent
+
+    - name: Restart solana service
+      become: yes
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: solana
