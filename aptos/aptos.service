@@ -1,0 +1,15 @@
+[Unit]
+Description=Aptos
+After=network-online.target
+
+[Service]
+User={{ ansible_facts['env']['USER'] }}
+ExecStart={{ ansible_facts['env']['HOME'] }}/aptos-core/target/release/aptos-node -f ./public_full_node.yaml
+WorkingDirectory={{ ansible_facts['env']['HOME'] }}/aptos-core
+Restart=always
+RestartSec=10
+LimitNOFILE=10000
+
+[Install]
+WantedBy=multi-user.target
+
