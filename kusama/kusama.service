@@ -3,7 +3,7 @@ Description=Kusama
 After=network-online.target
 [Service]
 User={{ ansible_facts['env']['USER'] }}
-ExecStart={{ ansible_facts['env']['HOME'] }}/polkadot.bin --name "{{ moniker }}" --chain kusama
+ExecStart={{ ansible_facts['env']['HOME'] }}/polkadot.bin --name "{{ moniker }}" --chain kusama --telemetry-url 'wss://telemetry-backend.w3f.community/submit 1'
 Restart=always
 RestartSec=10
 LimitNOFILE=10000
