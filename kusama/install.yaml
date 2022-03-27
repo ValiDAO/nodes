@@ -2,8 +2,8 @@
 - name: Kusama Installer
   hosts: kusama
   vars:
-    version: 0.9.17-rc4
-    checksum: 0e3c181b3ff04b4b7112c0c936274088ca7edf48a1b5b96c3c4b7940ab240383
+    version: 0.9.18
+    checksum: f2ec2dbc2d76e1e20106b4d4c5948af2e72bd2e104b51a7c8b390359cf21100a
 
   tasks:
     - name: Remove Existing Binary
