@@ -6,6 +6,18 @@
     checksum: f2ec2dbc2d76e1e20106b4d4c5948af2e72bd2e104b51a7c8b390359cf21100a
 
   tasks:
+    - name: Check already installed
+      stat:
+        path: "~/polkadot.bin"
+      register: file_exists
+
+    - name: Stop service if file exists
+      become: yes
+      systemd:
+        state: stopped
+        name: kusama
+      when: file_exists
+
     - name: Remove Existing Binary
       file:
         path: ~/polkadot.bin
