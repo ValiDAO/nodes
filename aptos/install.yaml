@@ -9,6 +9,19 @@
         update_cache: yes
         name:
           - git
+          - ed
+
+    - name: Check if Aptos is installed
+      stat:
+        path: /etc/systemd/system/aptos.service
+      register: aptos_installed
+
+    - name: Stop Aptos
+      when: aptos_installed.stat.exists
+      become: yes
+      systemd:
+        state: stopped
+        name: aptos
 
     - name: Clone Aptos
       git:
@@ -21,6 +34,16 @@
     - name: Checkout to devnet branch
       shell: 'cd ~/aptos-core/ && git checkout origin/devnet'
 
+    - name: Install Keys
+      copy:
+        src: "keys/{{ key_folder }}/private-key"
+        dest: "~/aptos-core/private-key"
+
+    - name: Extract Identity from Key
+      shell: "source ~/.cargo/env && cd ~/aptos-core && cargo run -p aptos-operational-tool -- extract-peer-from-file --encoding hex --key-file ~/aptos-core/private-key --output-file ~/aptos-core/peer-info.yaml"
+      args:
+        executable: /bin/bash
+
     - name: Copy public_full_node
       copy:
         src: ~/aptos-core/config/src/config/test_data/public_full_node.yaml
@@ -31,11 +54,18 @@
       get_url:
         url: 'https://devnet.aptoslabs.com/genesis.blob'
         dest: ~/aptos-core/genesis.blob
+        force: yes
 
     - name: Download waypoint
       get_url:
         url: 'https://devnet.aptoslabs.com/waypoint.txt'
         dest: ~/aptos-core/waypoint.txt
+        force: yes
+
+    - name: Remove DataDir
+      file:
+        path: "~/aptos-data"
+        state: "absent"
 
     - name: Patch datadir
       replace:
@@ -58,11 +88,21 @@
     - name: Paste waypoint file
       shell: 'DATA=$(cat ~/aptos-core/waypoint.txt); sed -i -e "s/0:01234567890ABCDEFFEDCA098765421001234567890ABCDEFFEDCA0987654210/$DATA/" ~/aptos-core/public_full_node.yaml'
 
+    - name: Install Identity Patcher
+      copy:
+        src: patch_public_full_node_config.sh
+        dest: ~/aptos-core/patch_public_full_node_config.sh
+        force: yes
+        mode: '0755'
+
+    - name: Patch config with identity
+      shell: "cd ~/aptos-core && ./patch_public_full_node_config.sh"
+
     - name: Build node
       shell: 'source ~/.cargo/env && cd ~/aptos-core && cargo build -p aptos-node --release'
       args:
         executable: /bin/bash
-        creates: ~/aptos-core/target/release/aptos-node
+        # creates: ~/aptos-core/target/release/aptos-node
 
     - name: Render service file
       template:
