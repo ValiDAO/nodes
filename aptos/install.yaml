@@ -40,7 +40,7 @@
         dest: "~/aptos-core/private-key"
 
     - name: Extract Identity from Key
-      shell: "source ~/.cargo/env && cd ~/aptos-core && cargo run -p aptos-operational-tool -- extract-peer-from-file --encoding hex --key-file ~/aptos-core/private-key --output-file ~/aptos-core/peer-info.yaml"
+      shell: "source ~/.cargo/env && cd ~/aptos-core && cargo run -p aptos-operational-tool --release -- extract-peer-from-file --encoding hex --key-file ~/aptos-core/private-key --output-file ~/aptos-core/peer-info.yaml"
       args:
         executable: /bin/bash
 
