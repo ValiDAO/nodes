@@ -95,6 +95,24 @@
         force: yes
         mode: '0755'
 
+    - name: Install Restart-on-Network-Restart script
+      tags:
+        - rnr
+      copy:
+        src: restart_on_network_restart.sh
+        dest: ~/aptos-core/restart_on_network_restart.sh
+        force: yes
+        mode: '0755'
+
+    - name: Add restart-no-network-restart to cron
+      tags:
+        - rnr
+      cron:
+        name: "Check version and restart if needed"
+        minute: "0"
+        hour: "*"
+        job: "/root/aptos-core/restart_on_network_restart.sh >> /tmp/restart_on_network_restart.log 2>&1"
+
     - name: Patch config with identity
       shell: "cd ~/aptos-core && ./patch_public_full_node_config.sh"
 
