@@ -22,6 +22,10 @@ then
         cargo build -p aptos-node --release
         systemctl stop aptos
         rm -rf ~/aptos-data
+        wget 'https://devnet.aptoslabs.com/genesis.blob' -O ~/aptos-core/genesis.blob
+        wget 'https://devnet.aptoslabs.com/waypoint.txt' -O ~/aptos-core/waypoint.txt
+        DATA=$(cat ~/aptos-core/waypoint.txt)
+        sed -i -e "s/from_config: \"0:.*/from_config: \"$DATA\"/" ~/aptos-core/public_full_node.yaml
         systemctl start aptos
 else
         echo "Doing nothing"
