@@ -1,0 +1,76 @@
+---
+- name: Startket Installer
+  hosts: starknet
+
+  tasks:
+    - name: Install required packages
+      become: yes
+      apt:
+        update_cache: yes
+        name:
+          - curl
+          - git
+          - python3
+          - python3-venv
+          - python3-dev
+          - build-essential
+          - libgmp-dev
+          - pkg-config
+          - libssl-dev
+
+    - name: Check if Cargo already installed
+      stat:
+        path: ~/.cargo/env
+      register: cargo_env
+
+    - name: Get Cargo if needed
+      when: not cargo_env.stat.exists
+      get_url:
+        url: https://sh.rustup.rs
+        dest: /tmp/rustup.sh
+        force: yes
+        mode: '0755'
+
+    - name: Install Cargo if needed
+      when: not cargo_env.stat.exists
+      shell: "/tmp/rustup.sh -y -q"
+
+    - name: Get repo
+      git:
+        repo: https://github.com/eqlabs/pathfinder.git
+        dest: ~/pathfinder
+
+    - name: Get latest version
+      shell: "cd ~/pathfinder && git fetch && git checkout $(git tag --list | sort | tail -n1)"
+
+    - name: Clear virutal env
+      file:
+        path: "~/pathfinder/py/.venv"
+        state: absent
+
+    - name: Initialize virtual env
+      shell: "cd ~/pathfinder/py && python3 -m venv .venv"
+
+    - name: Update pip
+      shell: "cd ~/pathfinder/py/ && source .venv/bin/activate && export PIP_REQUIRE_VIRTUALENV=true && pip install --upgrade pip && pip install -r requirements-dev.txt"
+      args:
+        executable: /bin/bash
+
+    - name: Bulid pathfinder
+      shell: "source ~/.cargo/env && cd ~/pathfinder && cargo build --release --bin pathfinder" 
+      args:
+        executable: /bin/bash
+
+    - name: Render service file
+      template:
+        src: pathfinder.service
+        dest: /etc/systemd/system/pathfinder.service
+      become: yes
+
+    - name: Start pathfinder service
+      become: yes
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: pathfinder
