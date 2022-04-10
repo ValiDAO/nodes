@@ -1,0 +1,14 @@
+[Unit]
+Description=StarkNet
+After=network.target
+
+[Service]
+User={{ ansible_facts['env']['USER'] }}
+Type=simple
+WorkingDirectory={{ ansible_facts['env']['HOME'] }}/pathfinder/py
+ExecStart=/bin/bash -c 'source {{ ansible_facts['env']['HOME'] }}/pathfinder/py/.venv/bin/activate && {{ ansible_facts['env']['HOME'] }}/pathfinder/target/release/pathfinder --http-rpc="0.0.0.0:9545" --ethereum.url {{ ethereum_provider }}'
+Restart=on-failure
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
