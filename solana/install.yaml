@@ -138,26 +138,11 @@
       shell: "~/.local/share/solana/install/active_release/bin/solana delegate-stake ~/validator-stake-keypair.json ~/vote-account-keypair.json || true"
 
     - name: Copy validator.sh file
-      tags:
-        - service_file
-      copy:
-        src: "validator_{{ flavour }}.sh"
-        dest: ~/validator.sh
-
-    - name: Patch validator.sh file HOME
-      tags:
-        - service_file
-      replace:
-        path: ~/validator.sh
-        regexp: HOME
-        replace: "{{ ansible_facts['env']['HOME'] }}"
-
-    - name: Chmod validator.sh file
-      tags:
-        - service_file
-      file:
+      template:
+        src: "validator_{{ flavour }}.sh.template"
+        dest: "{{ ansible_facts['env']['HOME'] }}/validator.sh"
         mode: '0755'
-        path: ~/validator.sh
+        force: 'yes'
 
     - name: Copy service file
       tags:
