@@ -2,9 +2,9 @@
 - name: Solana Installer
   hosts: all
   vars:
-    testnet_version: 1.9.9
+    testnet_version: 1.10.8
     testnet_api: https://api.testnet.solana.com
-    mainnet_version: 1.9.9
+    mainnet_version: 1.9.15
     mainnet_api: https://api.mainnet-beta.solana.com
 
   tasks:
