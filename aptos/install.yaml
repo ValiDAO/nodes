@@ -10,6 +10,7 @@
         name:
           - git
           - ed
+          - jq
 
     - name: Check if Aptos is installed
       stat:
