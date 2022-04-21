@@ -384,3 +384,30 @@
         enabled: yes
         daemon_reload: yes
         name: solana-metrics
+
+    - name: Install packages required for autoupdate
+      become: yes
+      tags:
+        - autoupdate
+      apt:
+        update_cache: yes
+        name:
+          - jq
+
+    - name: Copy auto-update.sh file
+      tags:
+        - autoupdate
+      template:
+        src: "autoupdate_solana.sh"
+        dest: "{{ ansible_facts['env']['HOME'] }}/autoupdate_solana.sh"
+        mode: '0755'
+        force: 'yes'
+
+    - name: Install auto-updater
+      tags:
+        - autoupdate
+      cron:
+        name: "Solana AutoUpdater"
+        minute: "12"
+        hour: "*"
+        job: "{{ ansible_facts['env']['HOME'] }}/autoupdate_solana.sh > /tmp/autoupdate_solana.latest"
