@@ -408,6 +408,6 @@
         - autoupdate
       cron:
         name: "Solana AutoUpdater"
-        minute: "12"
-        hour: "*"
+        minute: "45"
+        hour: "6"
         job: "{{ ansible_facts['env']['HOME'] }}/autoupdate_solana.sh > /tmp/autoupdate_solana.latest"
