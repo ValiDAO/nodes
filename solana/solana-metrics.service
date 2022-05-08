@@ -3,9 +3,9 @@ Description=Solana Metrics
 
 [Service]
 Type=simple
-User=USER
-Group=GROUP
-ExecStart=HOME/solana-metrics.py
+User={{ ansible_facts['env']['USER'] }}
+Group={{ ansible_facts['env']['USER'] }}
+ExecStart={{ ansible_facts['env']['HOME'] }}/solana-metrics.py
 
 [Install]
 WantedBy=multi-user.target
