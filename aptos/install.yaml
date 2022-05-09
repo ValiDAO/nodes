@@ -80,6 +80,12 @@
         regexp: '(\s*genesis_file_location:).*$'
         replace: '\1 "HOME/aptos-core/genesis.blob"'
 
+    - name: Patch waypoint
+      replace:
+        path: ~/aptos-core/public_full_node.yaml
+        regexp: '(\s*from_file:).*$'
+        replace: '\1 "HOME/aptos-core/waypoint.txt"'
+
     - name: Patch HOME
       replace:
         path: ~/aptos-core/public_full_node.yaml
