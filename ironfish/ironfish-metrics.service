@@ -1,0 +1,11 @@
+[Unit]
+Description=Ironfish Metrics
+After=ironfish-miner.target
+[Service]
+User={{ ansible_facts['env']['USER'] }}
+WorkingDirectory={{ ansible_facts['env']['HOME'] }}/ironfish/ironfish-cli
+ExecStart={{ ansible_facts['env']['HOME'] }}/ironfish-metrics.py
+Restart=always
+RestartSec=10
+[Install]
+WantedBy=multi-user.target

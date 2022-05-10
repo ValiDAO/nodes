@@ -1,0 +1,29 @@
+- name: Download NODE package manager
+  get_url:
+    url: "https://deb.nodesource.com/setup_16.x"
+    dest: "~/setup_node_16"
+
+- name: chmod NODE package manager
+  file:
+    path: "~/setup_node_16"
+    mode: '0755'
+
+- name: install NODE package manager
+  command: "{{ ansible_facts['env']['HOME'] }}/setup_node_16"
+  become: yes
+
+- name: Install required packages
+  apt:
+    update_cache: yes
+    name:
+      - nodejs
+      - gcc
+      - g++
+      - make
+  become: yes
+
+- name: Install YARN (because why not?)
+  shell: "npm install -g yarn nvm"
+  become: yes
+
+# We can solve multi-node js requirement with https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh

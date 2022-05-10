@@ -1,0 +1,109 @@
+---
+- name: Setup IRONFISH
+  hosts: ironfish
+  roles:
+    - role: '../_roles/has_rust_compiler'
+      vars:
+        toolchain: 'nightly'
+    - role: '../_roles/has_node_js'
+      vars:
+        version: 16
+
+  tasks:
+    - name: Install required packages
+      apt:
+        update_cache: yes
+        name:
+          - git
+      become: yes
+
+    - name: Clone IronFish repo
+      git:
+        repo: 'https://github.com/iron-fish/ironfish.git'
+        dest: ~/ironfish
+
+    - name: Create Fake File with version
+      file:
+        path: ~/ironfish/version
+        state: touch
+
+    - name: Copy AutoUpdater
+      template:
+        src: autoupdate.sh
+        dest: ~/ironfish/autoupdate.sh
+        mode: '0755'
+
+    - name: Run AutoUpdate for the first time
+      shell: ~/ironfish/autoupdate.sh
+
+    - name: Copy key
+      copy:
+        src: "keys/{{ key }}.json"
+        dest: "~/ironfish-key.json"
+
+    - name: Import key
+      shell: "if [ ! -d ~/ironfish/accounts/default ]; then cd ironfish/ironfish-cli && /usr/bin/yarn start:once accounts:import ~/ironfish-key.json; fi"
+
+    - name: Install service files
+      template:
+        src: "ironfish-{{ item }}.service"
+        dest: "/etc/systemd/system/ironfish-{{ item }}.service"
+      loop:
+        - node
+        - miner
+
+    - name: Set Graffity
+      shell: "cd ironfish/ironfish-cli && /usr/bin/yarn start:once config:set blockGraffiti {{ graffiti }}"
+
+    - name: Install node service and run
+      become: yes
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: "ironfish-{{ item }}"
+      loop:
+        - node
+        - miner
+
+    - name: Install Metrics dependencies
+      become: yes
+      tags:
+        - metrics
+      apt:
+        name:
+          - python3
+
+    - name: Copy metrics file
+      tags:
+        - metrics
+      template:
+        src: "metrics.py"
+        dest: "~/ironfish-metrics.py"
+        mode: '0755'
+
+    - name: Render metrics service file
+      tags:
+        - metrics
+      template:
+        src: "ironfish-metrics.service"
+        dest: "/etc/systemd/system/ironfish-metrics.service"
+
+    - name: Install node metrics service and run
+      become: yes
+      tags:
+        - metrics
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: "ironfish-metrics"
+
+    - name: Autoupdater
+      tags:
+        - autoupdater
+      cron:
+        name: "Ironfish: autoupdate"
+        minute: "17"
+        hour: "*"
+        job: "{{ ansible_facts['env']['HOME'] }}/ironfish/autoupdate.sh >> /tmp/ironfish-autoupdate.latest"

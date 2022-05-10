@@ -1,0 +1,42 @@
+- name: Install required packages
+  apt:
+    update_cache: yes
+    name:
+      - make
+      - clang
+      - pkg-config
+      - libssl-dev
+      - build-essential
+      - curl
+      - git
+  become: yes
+
+- name: Check RUST
+  stat:
+    path: ~/.cargo
+  register: cargo
+
+- name: Get RUST
+  get_url:
+    url: https://sh.rustup.rs
+    dest: ~/getrust.sh
+  when: not cargo.stat.exists
+
+- name: Chmod Get RUST
+  file:
+    path: ~/getrust.sh
+    mode: '0755'
+  when: not cargo.stat.exists
+
+- name: Install Cargo
+  shell: ~/getrust.sh -y
+  when: not cargo.stat.exists
+
+- name: Install toolchain
+  command: '/bin/bash -c "source ~/.cargo/env && rustup toolchain add {{ toolchain }}"'
+
+- name: Install targets
+  command: '/bin/bash -c "source ~/.cargo/env && rustup target add {{ item }} --toolchain {{ toolchain }}"'
+  loop:
+    - "wasm32-unknown-unknown"
+    - "x86_64-unknown-linux-gnu"
