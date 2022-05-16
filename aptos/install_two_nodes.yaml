@@ -1,0 +1,118 @@
+---
+- name: Aptos Validator
+  hosts: aptos
+
+  tasks:
+    - name: Install required packages
+      become: yes
+      apt:
+        update_cache: yes
+        name:
+          - git
+
+    - name: Clone Aptos
+      git:
+        repo: 'https://github.com/aptos-labs/aptos-core.git'
+        dest: ~/aptos-core
+
+    - name: Check testnet keys are generated
+      stat:
+        path: ~/aptos-testnet-keys
+      register: aptos_testnet_keys
+
+    - name: Git checkout to testnet branch
+      shell: "cd ~/aptos-core && git fetch && git checkout origin/testnet"
+      args:
+        executable: /bin/bash
+      when: not aptos_testnet_keys.stat.exists
+
+    - name: Run dev-setup script
+      shell: 'cd ~/aptos-core/ && ./scripts/dev_setup.sh -b -v'
+      when: not aptos_testnet_keys.stat.exists
+
+    - name: Generate testnet keys
+      shell: "source ~/.cargo/env && cd ~/aptos-core && cargo run --release -p aptos -- genesis generate-keys --output-dir ~/aptos-testnet-keys"
+      args:
+        executable: /bin/bash
+      when: not aptos_testnet_keys.stat.exists
+
+    - name: Fetch testnet keys
+      fetch:
+        dest: testnet-keys/{{ key_folder }}/
+        flat: yes
+        src: ~/aptos-testnet-keys/{{ item }}
+      loop:
+        - private-keys.yaml
+        - validator-identity.yaml
+        - validator-full-node-identity.yaml
+      when: not aptos_testnet_keys.stat.exists
+
+    - name: Configure Validator
+      shell: "source ~/.cargo/env && cd ~/aptos-core && cargo run --release -p aptos -- genesis set-validator-configuration --keys-dir ~/aptos-testnet-keys --local-repository-dir ~/aptos-testnet-keys --username {{ key_folder }} --validator-host {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:6180 --full-node-host {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:6182"
+      args:
+        executable: /bin/bash
+      when: not aptos_testnet_keys.stat.exists
+
+    - name: Copy layout file
+      template:
+        src: layout.yaml
+        dest: ~/aptos-testnet-keys/layout.yaml
+      when: not aptos_testnet_keys.stat.exists
+
+    - name: Copy config patcher
+      template:
+        src: patch_aptos_configs.sh
+        dest: /tmp/patch_aptos_configs.sh
+        mode: '0755'
+      when: not aptos_testnet_keys.stat.exists
+
+    - name: And run it
+      shell: "/tmp/patch_aptos_configs.sh"
+      when: not aptos_testnet_keys.stat.exists
+
+    - name: Build framework
+      shell: "source ~/.cargo/env && cd ~/aptos-core && cargo run --package framework --release -- --package aptos-framework --output current"
+      args:
+        executable: /bin/bash
+
+    - name: Create folder for framework
+      file:
+        path: ~/aptos-testnet-keys/framework
+        state: directory
+
+    - name: Install framework
+      shell: "cd ~/aptos-core && mv aptos-framework/releases/artifacts/current/build/**/bytecode_modules/*.mv ~/aptos-testnet-keys/framework/"
+      args:
+        executable: /bin/bash
+
+    - name: Generate genesis
+      shell: "source ~/.cargo/env && cd ~/aptos-core && cargo run --release -p aptos -- genesis generate-genesis --local-repository-dir ~/aptos-testnet-keys --output-dir ~/aptos-testnet-keys"
+      args:
+        executable: /bin/bash
+      when: not aptos_testnet_keys.stat.exists
+
+
+    - name: Build node
+      shell: 'source ~/.cargo/env && cd ~/aptos-core && cargo build -p aptos-node --release'
+      args:
+        executable: /bin/bash
+
+    - name: Render service file
+      template:
+        src: "{{ item }}.service"
+        dest: "/etc/systemd/system/{{ item }}.service"
+      become: yes
+      loop:
+        - aptos-full-node
+        - aptos-validator-node
+
+    - name: Start aptos service
+      become: yes
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: "{{ item }}"
+      loop:
+        - aptos-full-node
+        - aptos-validator-node
