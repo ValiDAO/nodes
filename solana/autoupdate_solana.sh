@@ -26,7 +26,7 @@ for version in "${versions[@]}";do
       wget "https://release.solana.com/v${version}/install" -O ~/install
       chmod +x ~/install
       ./install
-      solana-validator --ledger {{ledger_dir}} wait-for-restart-window
+      solana-validator --ledger {{ ansible_facts['env']['HOME'] }}/validator-ledger wait-for-restart-window
       sudo systemctl restart solana
     fi
     break
