@@ -2,12 +2,35 @@
 - name: Solana Installer
   hosts: all
   vars:
-    testnet_version: 1.10.8
+    testnet_version: 1.10.23
     testnet_api: https://api.testnet.solana.com
     mainnet_version: 1.9.15
     mainnet_api: https://api.mainnet-beta.solana.com
 
   tasks:
+    - name: Install snapshot-downloader dependencies
+      tags:
+        - snapshot-downloader
+      apt:
+        update_cache: yes
+        name:
+          - docker.io
+          - git-core
+      become: yes
+
+    - name: Clone snapshot-downloader
+      tags:
+        - snapshot-downloader
+      git:
+        repo: 'https://github.com/unordered-set/solana-snapshot-finder.git'
+        dest: ~/solana-snapshot-finder
+
+    - name: Build Solana snapshot downloader
+      tags:
+        - snapshot-downloader
+      shell: "cd {{ ansible_facts['env']['HOME'] }}/solana-snapshot-finder && docker build -t kostya-downloader ."
+      become: yes
+
     - name: Check swapfile exists
       tags:
         - ramdisk
@@ -138,10 +161,20 @@
       shell: "~/.local/share/solana/install/active_release/bin/solana delegate-stake ~/validator-stake-keypair.json ~/vote-account-keypair.json || true"
 
     - name: Copy validator.sh file
+      tags:
+        - validator_sh
       template:
-        src: "validator_{{ flavour }}.sh.template"
+        src: "validator.sh"
         dest: "{{ ansible_facts['env']['HOME'] }}/validator.sh"
         mode: '0755'
+        force: 'yes'
+
+    - name: Copy validator.env file
+      tags:
+        - validator_sh
+      template:
+        src: "solana.env.{{ flavour }}"
+        dest: "{{ ansible_facts['env']['HOME'] }}/solana.env"
         force: 'yes'
 
     - name: Copy service file
@@ -280,6 +313,24 @@
         minute: "12"
         hour: "*"
         job: "{{ ansible_facts['env']['HOME'] }}/solana-cleaner.sh > /tmp/solana-cleaner.latest"
+
+    - name: Install auto restarter
+      tags:
+        - restarter
+      template:
+        src: "solana-auto-restarter.sh"
+        dest: "{{ ansible_facts['env']['HOME'] }}/solana-auto-restarter.sh"
+        mode: '0755'
+        force: 'yes'
+
+    - name: Install auto-restarter
+      tags:
+        - restarter
+      cron:
+        name: "Solana AutoRestarter"
+        minute: "5,25,45"
+        hour: "*"
+        job: "{{ ansible_facts['env']['HOME'] }}/solana-auto-restarter.sh > /tmp/solana-auto-restarter.latest"
 
     - name: Copy withdrawer script
       tags:
