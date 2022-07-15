@@ -1,0 +1,17 @@
+[Unit]
+Description=Near Validator
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User={{ ansible_facts['env']['USER'] }}
+Group={{ ansible_facts['env']['USER'] }}
+LimitNOFILE=1024000
+LogRateLimitIntervalSec=0
+ExecStart={{ ansible_facts['env']['HOME'] }}/near_validator.sh
+
+[Install]
+WantedBy=multi-user.target

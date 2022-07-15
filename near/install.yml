@@ -1,0 +1,97 @@
+---
+- name: Near Installer
+  hosts: all
+  roles:
+    - role: '../_roles/has_rust_compiler'
+      vars:
+        toolchain: 'stable'
+
+  tasks:
+    - name: Check suport
+      shell: "lscpu | grep -P '(?=.*avx )(?=.*sse4.2 )(?=.*cx16 )(?=.*popcnt )' > /dev/null"
+      args:
+        executable: /bin/bash
+
+    - name: Install Required Deps
+      apt:
+        update_cache: yes
+        name:
+          - awscli
+          - binutils-dev 
+          - build-essential 
+          - cargo
+          - clang
+          - cmake
+          - docker.io
+          - g++
+          - gcc
+          - libcurl4-openssl-dev
+          - libdw-dev
+          - libiberty-dev
+          - libssl-dev
+          - llvm
+          - make
+          - pkg-config
+          - protobuf-compiler
+          - python
+          - python3-pip
+          - zlib1g-dev
+      become: yes
+
+    - name: Clone
+      git:
+        repo: 'https://github.com/near/nearcore'
+        dest: '~/nearcore'
+
+    - name: Build
+      shell: 'source ~/.cargo/env && cd ~/nearcore/ && cargo build -p neard --release --features shardnet'
+      args:
+        executable: /bin/bash
+
+    - name: Check .near folder exists
+      stat:
+        path: "~/.near"
+      register: near_initialized
+
+    - name: Init folder
+      shell: 'cd ~/nearcore && ./target/release/neard --home ~/.near init --chain-id shardnet --download-genesis'
+      args:
+        executable: /bin/bash
+      when: not near_initialized.stat.exists
+
+    - name: Remove default config
+      file:
+        state: absent
+        path: "~/.near/config.json"
+
+    - name: Download config
+      get_url:
+        url: 'https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore-deploy/shardnet/config.json'
+        dest: "~/.near/config.json"
+        force: yes
+
+    - name: Patch config
+      shell: "sed -e 's/archive\": false/archive\": true/' -i ~/.near/config.json"
+
+    - name: Copy near_validator.sh file
+      template:
+        src: "near_validator.sh"
+        dest: "{{ ansible_facts['env']['HOME'] }}/near_validator.sh"
+        mode: '0755'
+        force: 'yes'
+
+    - name: Copy service file
+      template:
+        src: "near.service"
+        dest: "/etc/systemd/system/near.service"
+        mode: '0644'
+        force: 'yes'
+      become: yes
+
+    - name: Start near service
+      become: yes
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: near
