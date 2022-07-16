@@ -57,7 +57,7 @@
       shell: 'cd ~/nearcore && ./target/release/neard --home ~/.near init --chain-id shardnet --download-genesis'
       args:
         executable: /bin/bash
-      when: not near_initialized.stat.exists
+        # when: not near_initialized.stat.exists
 
     - name: Remove default config
       file:
@@ -95,3 +95,63 @@
         enabled: yes
         daemon_reload: yes
         name: near
+
+    - name: Create Folder for NodeJS
+      tags:
+        - wallet
+      file:
+        path: "~/nodejs-18.6"
+        state: "directory"
+
+    - name: Download NodeJS
+      tags:
+        - wallet
+      get_url:
+        url: 'https://nodejs.org/dist/v18.6.0/node-v18.6.0-linux-x64.tar.xz'
+        dest: "~/nodejs-18.6"
+        checksum: "sha256:6a33e0ad02c9a3ce0ab298bba95055d45df05dfe0810e871ab5087d9f7852017"
+
+    - name: Extract NodeJS
+      tags:
+        - wallet
+      unarchive:
+        src: "~/nodejs-18.6/node-v18.6.0-linux-x64.tar.xz"
+        dest: "~/nodejs-18.6"
+        remote_src: yes
+
+    - name: Install NEAR-cli
+      tags:
+        - wallet
+      shell: "export PATH=\"{{ ansible_facts['env']['HOME'] }}/nodejs-18.6/node-v18.6.0-linux-x64/bin:$PATH\"; npm install -g near-cli"
+      args:
+        executable: /bin/bash
+      become: yes
+
+    - name: Ensure everything for near is in .bashrc
+      tags:
+        - wallet
+      blockinfile:
+        dest: "{{ ansible_env.HOME }}/.bashrc"
+        block: |
+          export PATH="{{ ansible_env.HOME }}/nodejs-18.6/node-v18.6.0-linux-x64/bin:$PATH"
+          export NEAR_ENV=shardnet
+        marker: '# {mark} ANSIBLE MANAGED BLOCK - near'
+        insertbefore: BOF
+        create: yes
+
+#    - name: Install Node-18
+#      tags:
+#        - wallet
+#      shell: "curl -sL https://deb.nodesource.com/setup_18.x | bash - "
+#      args:
+#        executable: /bin/bash
+#      become: yes
+#
+#    - name: Install Required Deps
+#      tags:
+#        - wallet
+#      apt:
+#        update_cache: yes
+#        name:
+#          - build-essential
+#          - nodejs
