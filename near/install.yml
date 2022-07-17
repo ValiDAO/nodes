@@ -139,6 +139,23 @@
         insertbefore: BOF
         create: yes
 
+    - name: Install Pool creator deps
+      tags:
+        - poolcreate
+      apt:
+        update_cache: yes
+        name:
+          - jq
+
+    - name: Install Pool creator
+      tags:
+        - poolcreate
+      template:
+        src: "near_pool_create.sh"
+        dest: "{{ ansible_facts['env']['HOME'] }}/near_pool_create.sh"
+        mode: '0755'
+        force: 'yes'
+
 #    - name: Install Node-18
 #      tags:
 #        - wallet
