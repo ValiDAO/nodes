@@ -151,10 +151,13 @@
       tags:
         - poolcreate
       template:
-        src: "near_pool_create.sh"
-        dest: "{{ ansible_facts['env']['HOME'] }}/near_pool_create.sh"
+        src: "{{ item }}"
+        dest: "{{ ansible_facts['env']['HOME'] }}/{{ item }}"
         mode: '0755'
         force: 'yes'
+      loop:
+        - near_pool_create.sh
+        - near_stake.sh
 
 #    - name: Install Node-18
 #      tags:
