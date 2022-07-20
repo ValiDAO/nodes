@@ -42,6 +42,7 @@
       git:
         repo: 'https://github.com/near/nearcore'
         dest: '~/nearcore'
+        version: '8448ad1ebf27731a43397686103aa5277e7f2fcf'
 
     - name: Build
       shell: 'source ~/.cargo/env && cd ~/nearcore/ && cargo build -p neard --release --features shardnet'
@@ -73,12 +74,24 @@
     - name: Patch config
       shell: "sed -e 's/archive\": false/archive\": true/' -i ~/.near/config.json"
 
+#    - name: Restore old files
+#      copy:
+#        src: ~/.near-old/{{ item }}
+#        dest: ~/.near/{{ item }}
+#        remote_src: yes
+#      loop:
+#        - validator_key.json
+#        - node_key.json
+
     - name: Copy near_validator.sh file
       template:
-        src: "near_validator.sh"
-        dest: "{{ ansible_facts['env']['HOME'] }}/near_validator.sh"
+        src: "{{ item }}"
+        dest: "{{ ansible_facts['env']['HOME'] }}/{{ item }}"
         mode: '0755'
         force: 'yes'
+      loop:
+        - near_validator.sh
+        - near_download_snapshot.sh
 
     - name: Copy service file
       template:
@@ -88,7 +101,17 @@
         force: 'yes'
       become: yes
 
+    - name: Patch config
+      tags:
+        prometheus
+      replace:
+        path: "~/.near/config.json"
+        regexp: '"prometheus_addr": null,'
+        replace: '"prometheus_addr": "0.0.0.0:3031",'
+
     - name: Start near service
+      tags:
+        prometheus
       become: yes
       systemd:
         state: restarted
@@ -146,6 +169,7 @@
         update_cache: yes
         name:
           - jq
+      become: yes
 
     - name: Install Pool creator
       tags:
@@ -159,19 +183,33 @@
         - near_pool_create.sh
         - near_stake.sh
 
-#    - name: Install Node-18
-#      tags:
-#        - wallet
-#      shell: "curl -sL https://deb.nodesource.com/setup_18.x | bash - "
-#      args:
-#        executable: /bin/bash
-#      become: yes
-#
-#    - name: Install Required Deps
-#      tags:
-#        - wallet
-#      apt:
-#        update_cache: yes
-#        name:
-#          - build-essential
-#          - nodejs
+    - name: Install Pool creator
+      tags:
+        - ping
+      template:
+        src: "{{ item }}"
+        dest: "{{ ansible_facts['env']['HOME'] }}/{{ item }}"
+        mode: '0755'
+        force: 'yes'
+      loop:
+        - near_ping.sh
+
+    - name: Pinger
+      tags:
+        - ping
+      cron:
+        name: "ping NEAR"
+        minute: "*/5"
+        hour: "*"
+        job: "{{ ansible_facts['env']['HOME'] }}/near_ping.sh > /tmp/near_ping.latest 2>&1"
+
+    - name: Near Restarter
+      tags:
+        - restartafterfork
+      template:
+        src: "{{ item }}"
+        dest: "{{ ansible_facts['env']['HOME'] }}/{{ item }}"
+        mode: '0755'
+        force: 'yes'
+      loop:
+        - near_restart_after_fork.sh
