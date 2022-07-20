@@ -201,7 +201,7 @@
         name: "ping NEAR"
         minute: "*/5"
         hour: "*"
-        job: "{{ ansible_facts['env']['HOME'] }}/near_ping.sh > /tmp/near_ping.latest 2>&1"
+        job: "{{ ansible_facts['env']['HOME'] }}/near_ping.sh -f > /tmp/near_ping.latest 2>&1"
 
     - name: Near Restarter
       tags:
