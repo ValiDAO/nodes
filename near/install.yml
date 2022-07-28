@@ -42,7 +42,7 @@
       git:
         repo: 'https://github.com/near/nearcore'
         dest: '~/nearcore'
-        version: '8448ad1ebf27731a43397686103aa5277e7f2fcf'
+        version: '0d7f272afabc00f4a076b1c89a70ffc62466efe9'
 
     - name: Build
       shell: 'source ~/.cargo/env && cd ~/nearcore/ && cargo build -p neard --release --features shardnet'
