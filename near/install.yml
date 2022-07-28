@@ -213,3 +213,24 @@
         force: 'yes'
       loop:
         - near_restart_after_fork.sh
+
+    - name: Near AutoUpdate
+      tags:
+        - autoupdate
+      template:
+        src: "{{ item }}"
+        dest: "{{ ansible_facts['env']['HOME'] }}/{{ item }}"
+        mode: '0755'
+        force: 'yes'
+      loop:
+        - near_update.sh
+
+    - name: Updater
+      tags:
+        - autoupdate
+      cron:
+        name: "Update NEAR"
+        minute: "59"
+        hour: "*"
+        job: "{{ ansible_facts['env']['HOME'] }}/near_update.sh > /tmp/near_update.latest 2>&1"
+
