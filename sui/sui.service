@@ -1,0 +1,13 @@
+[Unit]
+Description=Sui node
+After=network-online.target
+
+[Service]
+User={{ ansible_facts['env']['USER'] }}
+ExecStart={{ ansible_facts['env']['HOME'] }}/sui/target/release/sui-node --config-path {{ ansible_facts['env']['HOME'] }}/.sui/fullnode.yaml
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target"

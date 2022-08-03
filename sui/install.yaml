@@ -1,0 +1,172 @@
+---
+- name: Setup Sui
+  hosts: sui
+  roles:
+    - role: '../_roles/has_rust_compiler'
+      vars:
+        toolchain: 'nightly'
+
+  tasks:
+    - name: Install required packages
+      apt:
+        update_cache: yes
+        name:
+          - git
+          - wget
+          - jq
+          - git
+          - libclang-dev
+          - cmake
+      become: yes
+
+    - name: Clone Sui repo
+      git:
+        repo: 'https://github.com/MystenLabs/sui'
+        dest: ~/sui
+        version: devnet
+
+    - name: Make data folder
+      file:
+        path: ~/.sui
+        state: directory
+
+    - name: Build node
+      shell: 'source ~/.cargo/env && cd ~/sui && cargo build --release'
+      args:
+        executable: /bin/bash
+
+    - name: Download genesis
+      get_url:
+        url: 'https://github.com/MystenLabs/sui-genesis/raw/main/devnet/genesis.blob'
+        dest: ~/.sui/genesis.blob
+        force: yes
+        
+    - name: Initialize config
+      copy:
+        src: ~/sui/crates/sui-config/data/fullnode-template.yaml
+        dest: ~/.sui/fullnode.yaml
+        remote_src: yes
+
+    - name: Patch Config 1
+      replace:
+        path: ~/.sui/fullnode.yaml
+        regexp: "^db-path:.*$"
+        replace: "db-path: \"{{ ansible_facts['env']['HOME'] }}/.sui/db\""
+    - name: Patch Config 2
+      replace:
+        path: ~/.sui/fullnode.yaml
+        regexp: "^metrics-address:.*$"
+        replace: "metrics-address: \"0.0.0.0:19184\""
+    - name: Patch Config 3
+      replace:
+        path: ~/.sui/fullnode.yaml
+        regexp: "^json-rpc-address:.*$"
+        replace: "json-rpc-address: \"0.0.0.0:19185\""
+    - name: Patch Config 4
+      replace:
+        path: ~/.sui/fullnode.yaml
+        regexp: "genesis-file-location:.*$"
+        replace: "genesis-file-location: \"{{ ansible_facts['env']['HOME'] }}/.sui/genesis.blob\""
+
+    - name: Render service file
+      template:
+        src: sui.service
+        dest: /etc/systemd/system/sui.service
+      become: yes
+
+    - name: Start sui service
+      become: yes
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: sui
+#
+#    - name: Create Fake File with version
+#      file:
+#        path: ~/ironfish/version
+#        state: touch
+#
+#    - name: Copy AutoUpdater
+#      template:
+#        src: autoupdate.sh
+#        dest: ~/ironfish/autoupdate.sh
+#        mode: '0755'
+#
+#    - name: Run AutoUpdate for the first time
+#      shell: ~/ironfish/autoupdate.sh
+#
+#    - name: Copy key
+#      copy:
+#        src: "keys/{{ key }}.json"
+#        dest: "~/ironfish-key.json"
+#
+#    - name: Import key
+#      shell: "if [ ! -d ~/ironfish/accounts/default ]; then cd ironfish/ironfish-cli && /usr/bin/yarn start accounts:import ~/ironfish-key.json; fi"
+#
+#    - name: Install service files
+#      template:
+#        src: "ironfish-{{ item }}.service"
+#        dest: "/etc/systemd/system/ironfish-{{ item }}.service"
+#      loop:
+#        - node
+#        - miner
+#
+#    - name: Set Graffity
+#      shell: "cd ironfish/ironfish-cli && /usr/bin/yarn start config:set blockGraffiti {{ graffiti }}"
+#
+#    - name: Enable Telemetry
+#      shell: "cd ironfish/ironfish-cli && /usr/bin/yarn start config:set enableTelemetry true"
+#
+#    - name: Install node service and run
+#      become: yes
+#      systemd:
+#        state: restarted
+#        enabled: yes
+#        daemon_reload: yes
+#        name: "ironfish-{{ item }}"
+#      loop:
+#        - node
+#        - miner
+#
+#    - name: Install Metrics dependencies
+#      become: yes
+#      tags:
+#        - metrics
+#      apt:
+#        name:
+#          - python3
+#
+#    - name: Copy metrics file
+#      tags:
+#        - metrics
+#      template:
+#        src: "metrics.py"
+#        dest: "~/ironfish-metrics.py"
+#        mode: '0755'
+#
+#    - name: Render metrics service file
+#      tags:
+#        - metrics
+#      template:
+#        src: "ironfish-metrics.service"
+#        dest: "/etc/systemd/system/ironfish-metrics.service"
+#
+#    - name: Install node metrics service and run
+#      become: yes
+#      tags:
+#        - metrics
+#      systemd:
+#        state: restarted
+#        enabled: yes
+#        daemon_reload: yes
+#        name: "ironfish-metrics"
+#
+#    - name: Autoupdater cron
+#      tags:
+#        - autoupdater
+#      cron:
+#        name: "Ironfish: autoupdate"
+#        minute: "17"
+#        hour: "*"
+#        job: "{{ ansible_facts['env']['HOME'] }}/ironfish/autoupdate.sh >> /tmp/ironfish-autoupdate.latest"
