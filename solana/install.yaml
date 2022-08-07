@@ -2,10 +2,11 @@
 - name: Solana Installer
   hosts: all
   vars:
-    testnet_version: 1.10.23
+    testnet_version: 1.10.28
     testnet_api: https://api.testnet.solana.com
-    mainnet_version: 1.9.15
+    mainnet_version: 1.10.32
     mainnet_api: https://api.mainnet-beta.solana.com
+
 
   tasks:
     - name: Install snapshot-downloader dependencies
@@ -37,6 +38,7 @@
       stat:
         path: "/swapfile"
       register: swapfile_exists
+      when: (create_ramdisk is defined) and create_ramdisk|bool == True
 
     - name: Create swapfile
       tags:
@@ -44,6 +46,7 @@
       become: yes
       shell: "dd if=/dev/zero of=/swapfile bs=1MiB count=250KiB"
       when: not swapfile_exists.stat.exists
+      when: (create_ramdisk is defined) and create_ramdisk|bool == True
 
     - name: Chmod swapfile
       tags:
@@ -53,6 +56,7 @@
         path: "/swapfile"
         mode: '0600'
       when: not swapfile_exists.stat.exists
+      when: (create_ramdisk is defined) and create_ramdisk|bool == True
 
     - name: Format swap
       tags:
@@ -60,6 +64,7 @@
       become: yes
       shell: "mkswap /swapfile"
       when: not swapfile_exists.stat.exists
+      when: (create_ramdisk is defined) and create_ramdisk|bool == True
 
     - name: Add swap to /etc/fstab
       tags:
@@ -69,12 +74,14 @@
         path: /etc/fstab
         regexp: '^/swapfile'
         line: "/swapfile swap swap defaults 0 0"
+      when: (create_ramdisk is defined) and create_ramdisk|bool == True
 
     - name: Enable swap
       tags:
         - ramdisk
       become: yes
       shell: "swapon -a"
+      when: (create_ramdisk is defined) and create_ramdisk|bool == True
 
     - name: Mount Point for ramdisk
       tags:
@@ -84,6 +91,7 @@
         path: '/mnt/solana-accounts'
         state: directory
         mode: '0755'
+      when: (create_ramdisk is defined) and create_ramdisk|bool == True
   
     - name: Add tmpdisk to /etc/fstab
       tags:
@@ -93,12 +101,14 @@
         path: /etc/fstab
         regexp: '/mnt/solana-accounts'
         line: "tmpfs /mnt/solana-accounts tmpfs rw,size=300G,user={{ ansible_facts['env']['USER'] }} 0 0"
+      when: (create_ramdisk is defined) and create_ramdisk|bool == True
 
     - name: Enable tmpfs
       tags:
         - ramdisk
       become: yes
       shell: "mount /mnt/solana-accounts/"
+      when: (create_ramdisk is defined) and create_ramdisk|bool == True
 
     - name: Copy keys
       copy:
