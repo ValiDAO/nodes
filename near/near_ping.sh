@@ -41,4 +41,4 @@ then
 fi
 
 export PATH="/root/nodejs-18.6/node-v18.6.0-linux-x64/bin/:$PATH"
-near call "$POOL_ID" ping '{}' --accountId "$ACCOUNT_ID" --gas=300000000000000
+near call "$POOL_ID" ping '{}' --accountId "$ACCOUNT_ID" --gas=800000000000
